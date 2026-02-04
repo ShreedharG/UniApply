@@ -1,0 +1,23 @@
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Scripts
+src/scripts/*
+
+# Package lock
+package-lock.json
