@@ -8,6 +8,7 @@ type DocStatus = 'MISSING' | 'UPLOADING' | 'PENDING' | 'VERIFIED' | 'REJECTED' |
 
 interface StudentDocument {
   id: string; // The frontend ID
+  dbId?: string; // The database ID (for deletion)
   type: string; // The backend type enum
   title: string;
   description: string;
@@ -62,6 +63,7 @@ export const DocumentsPage = () => {
           return {
             ...doc,
             status: status,
+            dbId: record._id || record.id,
             fileName: record.fileName || 'document.pdf',
             documentUrl: record.documentUrl,
             fileSize: '2 MB', // Still mock, backend need to store size to be dynamic
@@ -103,6 +105,24 @@ export const DocumentsPage = () => {
         if (doc.id === footerId) return { ...doc, status: 'MISSING' };
         return doc;
       }));
+    }
+  };
+
+  const handleDelete = async (docId: string) => {
+    const doc = documents.find(d => d.id === docId);
+    if (!doc || !doc.dbId) return;
+
+    if (!window.confirm('Are you sure you want to delete this document? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await academicRecordService.deleteRecord(doc.dbId);
+      // Refresh records or manually update state
+      await fetchRecords();
+    } catch (error) {
+      console.error('Delete failed', error);
+      alert('Failed to delete document');
     }
   };
 
@@ -199,8 +219,18 @@ export const DocumentsPage = () => {
                       size="sm"
                       className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                       onClick={() => triggerFileInput(doc.id)} // Allow re-upload
+                      title="Replace File"
                     >
                       <Upload className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                      onClick={() => handleDelete(doc.id)}
+                      title="Delete File"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </>
                 )}

@@ -28,5 +28,11 @@ export const academicRecordService = {
             }
         });
         return data;
+    },
+
+    // Delete record
+    deleteRecord: async (id: string) => {
+        const { data } = await api.delete(`/academic-records/${id}`);
+        return data;
     }
 };

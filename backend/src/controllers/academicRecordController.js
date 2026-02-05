@@ -1,5 +1,5 @@
 import { AcademicRecord } from '../models/index.js';
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3Client.js";
 import path from 'path';
 
@@ -77,6 +77,54 @@ export const uploadRecord = async (req, res) => {
         res.status(201).json(record);
     } catch (error) {
         console.error("Upload Controller Error:", error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+// @desc    Delete academic record
+// @route   DELETE /api/academic-records/:id
+// @access  Private (Student)
+export const deleteRecord = async (req, res) => {
+    try {
+        const record = await AcademicRecord.findById(req.params.id);
+
+        if (!record) {
+            return res.status(404).json({ message: 'Record not found' });
+        }
+
+        // Check ownership
+        if (record.userId.toString() !== req.user.id) {
+            return res.status(401).json({ message: 'Not authorized' });
+        }
+
+        // Delete from S3
+        if (record.documentUrl) {
+            // Extract key from URL or just use the filename logic if consistent
+            // URL: https://BUCKET.s3.REGION.amazonaws.com/academic-records/FILENAME
+            // Key: academic-records/FILENAME
+            // Reliable way: Extract from URL
+            const urlParts = record.documentUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1];
+            const key = `academic-records/${fileName}`;
+
+            try {
+                const deleteParams = {
+                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Key: key,
+                };
+                const command = new DeleteObjectCommand(deleteParams);
+                await s3Client.send(command);
+            } catch (s3Error) {
+                console.error("S3 Delete Error:", s3Error);
+                // Continue to delete from DB even if S3 fails? 
+                // Usually yes, to keep DB clean, but maybe log it.
+            }
+        }
+
+        await record.deleteOne();
+
+        res.json({ message: 'Record removed' });
+    } catch (error) {
+        console.error("Delete Record Error:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
